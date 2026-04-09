@@ -1,0 +1,15 @@
+# ROS2 / colcon generated artifacts
+build/
+install/
+log/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

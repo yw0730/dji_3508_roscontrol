@@ -1,0 +1,154 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dji_m3508_single_robot">
+  <xacro:arg name="use_fake_hardware" default="true"/>
+  <xacro:arg name="use_gazebo" default="false"/>
+
+  <!-- 电机定子外壳（固定部分） -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.05"/>
+      </geometry>
+      <material name="motor_shell_gray">
+        <color rgba="0.35 0.35 0.38 1.0"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.027" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.027" length="0.004"/>
+      </geometry>
+      <material name="end_cap_dark">
+        <color rgba="0.20 0.20 0.22 1.0"/>
+      </material>
+    </visual>
+    <!-- 安装法兰孔位示意 -->
+    <visual>
+      <origin xyz="0.018 0.0 0.029" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.003" length="0.003"/>
+      </geometry>
+      <material name="flange_metal">
+        <color rgba="0.72 0.72 0.74 1.0"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="-0.018 0.0 0.029" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.003" length="0.003"/>
+      </geometry>
+      <material name="flange_metal"/>
+    </visual>
+    <visual>
+      <origin xyz="0.0 0.018 0.029" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.003" length="0.003"/>
+      </geometry>
+      <material name="flange_metal"/>
+    </visual>
+    <visual>
+      <origin xyz="0.0 -0.018 0.029" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.003" length="0.003"/>
+      </geometry>
+      <material name="flange_metal"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.05"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0 0 0.027" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.027" length="0.004"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.25"/>
+      <inertia ixx="0.00008" ixy="0.0" ixz="0.0" iyy="0.00008" iyz="0.0" izz="0.00011"/>
+    </inertial>
+  </link>
+
+  <!-- 电机输出轴（旋转部分） -->
+  <link name="joint1_link">
+    <visual>
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.02"/>
+      </geometry>
+      <material name="shaft_silver">
+        <color rgba="0.80 0.80 0.82 1.0"/>
+      </material>
+    </visual>
+    <!-- 旋转标记：便于在 Gazebo 里观察旋转方向和速度 -->
+    <visual>
+      <origin xyz="0.006 0.0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.004 0.002 0.018"/>
+      </geometry>
+      <material name="rotor_marker_red">
+        <color rgba="0.85 0.15 0.15 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <mass value="0.03"/>
+      <inertia ixx="0.000003" ixy="0.0" ixz="0.0" iyy="0.000003" iyz="0.0" izz="0.000001"/>
+    </inertial>
+  </link>
+
+  <joint name="joint1" type="continuous">
+    <parent link="base_link"/>
+    <child link="joint1_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <ros2_control name="M3508System" type="system">
+    <hardware>
+      <!-- Gazebo 模式：控制接口直接接入 Gazebo 物理引擎 -->
+      <xacro:if value="$(arg use_gazebo)">
+        <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+      </xacro:if>
+      <xacro:unless value="$(arg use_gazebo)">
+        <!-- 非 Gazebo 仿真模式：使用 ros2_control 内置 mock 硬件 -->
+        <xacro:if value="$(arg use_fake_hardware)">
+          <plugin>mock_components/GenericSystem</plugin>
+        </xacro:if>
+        <!-- 实物模式：切换到自定义 DJI CAN 硬件插件 -->
+        <xacro:unless value="$(arg use_fake_hardware)">
+          <plugin>dji_m3508_ros2/DjiM3508Hardware</plugin>
+          <param name="can_interface">can0</param>
+          <param name="motor_id">1</param>
+          <param name="kp">10.0</param>
+          <param name="ki">0.1</param>
+          <param name="kd">0.01</param>
+        </xacro:unless>
+      </xacro:unless>
+    </hardware>
+
+    <joint name="joint1">
+      <!-- 速度控制输入（rad/s） -->
+      <command_interface name="velocity"/>
+      <!-- 电机状态输出：位置与速度 -->
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <parameters>$(find dji_m3508_single)/config/controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
+</robot>
