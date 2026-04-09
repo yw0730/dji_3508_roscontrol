@@ -2,6 +2,12 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dji_m3508_single_robot">
   <xacro:arg name="use_fake_hardware" default="true"/>
   <xacro:arg name="use_gazebo" default="false"/>
+  <xacro:arg name="transport" default="can"/>
+  <xacro:arg name="serial_port" default="/dev/ttyUSB0"/>
+  <xacro:arg name="baudrate" default="921600"/>
+  <xacro:arg name="cmd_timeout_ms" default="100"/>
+
+  <xacro:property name="transport" value="$(arg transport)"/>
 
   <!-- 电机定子外壳（固定部分） -->
   <link name="base_link">
@@ -127,12 +133,22 @@
         </xacro:if>
         <!-- 实物模式：切换到自定义 DJI CAN 硬件插件 -->
         <xacro:unless value="$(arg use_fake_hardware)">
-          <plugin>dji_m3508_ros2/DjiM3508Hardware</plugin>
-          <param name="can_interface">can0</param>
-          <param name="motor_id">1</param>
-          <param name="kp">10.0</param>
-          <param name="ki">0.1</param>
-          <param name="kd">0.01</param>
+          <xacro:if value="${transport == 'can'}">
+            <plugin>dji_m3508_ros2/DjiM3508Hardware</plugin>
+            <param name="can_interface">can0</param>
+            <param name="motor_id">1</param>
+            <param name="kp">10.0</param>
+            <param name="ki">0.1</param>
+            <param name="kd">0.01</param>
+          </xacro:if>
+          <xacro:if value="${transport == 'uart'}">
+            <plugin>dji_m3508_ros2/DjiM3508UartHardware</plugin>
+            <param name="motor_id">1</param>
+            <param name="serial_port">$(arg serial_port)</param>
+            <param name="baudrate">$(arg baudrate)</param>
+            <param name="cmd_timeout_ms">$(arg cmd_timeout_ms)</param>
+            <param name="heartbeat_period_ms">20</param>
+          </xacro:if>
         </xacro:unless>
       </xacro:unless>
     </hardware>

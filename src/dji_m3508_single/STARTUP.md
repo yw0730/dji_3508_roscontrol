@@ -7,6 +7,7 @@
 - 纯 ROS 仿真：`mock_components/GenericSystem`
 - Gazebo 仿真：`gazebo_ros2_control/GazeboSystem`
 - 真实硬件：`dji_m3508_ros2/DjiM3508Hardware`
+- 真实硬件（UART 协议）：`dji_m3508_ros2/DjiM3508UartHardware`
 
 控制目标：
 
@@ -56,6 +57,13 @@ dji_m3508_single/
 - 参数：`use_fake_hardware:=false use_gazebo:=false`
 - 硬件插件：`dji_m3508_ros2/DjiM3508Hardware`
 - 需要 Linux SocketCAN 与 C620 电调链路
+
+### 3.4 实机 UART 模式
+
+- 参数：`use_fake_hardware:=false use_gazebo:=false transport:=uart`
+- 硬件插件：`dji_m3508_ros2/DjiM3508UartHardware`
+- 串口参数：`serial_port`（默认 `/dev/ttyUSB0`）、`baudrate`（默认 `921600`）
+- 命令超时参数：`cmd_timeout_ms`（默认 `100`）
 
 ## 4. 环境依赖
 
@@ -180,6 +188,36 @@ ros2 launch dji_m3508_single m3508.launch.py use_fake_hardware:=false use_gazebo
 - `kp`：默认 `10.0`
 - `ki`：默认 `0.1`
 - `kd`：默认 `0.01`
+
+UART 模式参数（`transport:=uart`）：
+
+- `serial_port`：默认 `/dev/ttyUSB0`
+- `baudrate`：默认 `921600`
+- `cmd_timeout_ms`：默认 `100`
+- `motor_id`：默认 `1`
+
+串口权限与设备检查：
+
+```bash
+ls -l /dev/ttyUSB*
+groups
+```
+
+如果当前用户不在 `dialout` 组，可执行：
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+重新登录后生效。
+
+UART 启动示例：
+
+```bash
+ros2 launch dji_m3508_single m3508.launch.py \
+  use_fake_hardware:=false use_gazebo:=false \
+  transport:=uart serial_port:=/dev/ttyUSB0 baudrate:=921600 cmd_timeout_ms:=100
+```
 
 ## 11. 话题与接口
 
