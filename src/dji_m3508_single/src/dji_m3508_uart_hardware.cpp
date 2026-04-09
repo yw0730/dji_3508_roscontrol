@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <thread>
 #include <vector>
 
 #include "dji_m3508_single/serial_utils.hpp"
@@ -175,11 +176,20 @@ hardware_interface::CallbackReturn DjiM3508UartHardware::on_activate(
   }
 
   if (ack.result != kAckOk) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("DjiM3508UartHardware"),
-      "SET_MODE rejected, err_code=%u",
-      static_cast<unsigned int>(ack.err_code));
-    return hardware_interface::CallbackReturn::ERROR;
+    if (ack.result == kAckWarn) {
+      RCLCPP_WARN(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "SET_MODE ACK=WARN seq=%u err_code=%u, continue activation",
+        static_cast<unsigned int>(ack.ack_seq),
+        static_cast<unsigned int>(ack.err_code));
+    } else {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "SET_MODE ACK=ERROR seq=%u err_code=%u",
+        static_cast<unsigned int>(ack.ack_seq),
+        static_cast<unsigned int>(ack.err_code));
+      return hardware_interface::CallbackReturn::ERROR;
+    }
   }
 
   hw_commands_[0] = 0.0;
@@ -344,6 +354,8 @@ bool DjiM3508UartHardware::wait_for_ack(
         }
       }
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   return false;
@@ -424,12 +436,23 @@ void DjiM3508UartHardware::parse_ack(const std::vector<uint8_t> & payload)
   last_ack_.err_code = read_le16(payload, 3);
   last_ack_.recv_time = std::chrono::steady_clock::now();
 
-  if (last_ack_.result != kAckOk) {
+  if (last_ack_.result == kAckWarn) {
     RCLCPP_WARN(
       rclcpp::get_logger("DjiM3508UartHardware"),
-      "ACK error seq=%u err_code=%u",
+      "ACK WARN seq=%u err_code=%u",
       static_cast<unsigned int>(last_ack_.ack_seq),
       static_cast<unsigned int>(last_ack_.err_code));
+  } else if (last_ack_.result == kAckError) {
+    RCLCPP_WARN(
+      rclcpp::get_logger("DjiM3508UartHardware"),
+      "ACK ERROR seq=%u err_code=%u",
+      static_cast<unsigned int>(last_ack_.ack_seq),
+      static_cast<unsigned int>(last_ack_.err_code));
+  } else {
+    RCLCPP_DEBUG(
+      rclcpp::get_logger("DjiM3508UartHardware"),
+      "ACK OK seq=%u",
+      static_cast<unsigned int>(last_ack_.ack_seq));
   }
 }
 

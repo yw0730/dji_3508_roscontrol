@@ -1,18 +1,20 @@
 <?xml version="1.0"?>
-<library path="dji_m3508_hardware">
-  <class
-    name="dji_m3508_ros2/DjiM3508Hardware"
-    type="dji_m3508_single::DjiM3508Hardware"
-    base_class_type="hardware_interface::SystemInterface">
-    <description>DJI M3508 ros2_control hardware plugin based on SocketCAN.</description>
-  </class>
-</library>
+<class_libraries>
+  <library path="dji_m3508_hardware">
+    <class
+      name="dji_m3508_ros2/DjiM3508Hardware"
+      type="dji_m3508_single::DjiM3508Hardware"
+      base_class_type="hardware_interface::SystemInterface">
+      <description>DJI M3508 ros2_control hardware plugin based on SocketCAN.</description>
+    </class>
+  </library>
 
-<library path="dji_m3508_uart_hardware">
-  <class
-    name="dji_m3508_ros2/DjiM3508UartHardware"
-    type="dji_m3508_single::DjiM3508UartHardware"
-    base_class_type="hardware_interface::SystemInterface">
-    <description>DJI M3508 ros2_control hardware plugin based on UART protocol client.</description>
-  </class>
-</library>
+  <library path="dji_m3508_uart_hardware">
+    <class
+      name="dji_m3508_ros2/DjiM3508UartHardware"
+      type="dji_m3508_single::DjiM3508UartHardware"
+      base_class_type="hardware_interface::SystemInterface">
+      <description>DJI M3508 ros2_control hardware plugin based on UART protocol client.</description>
+    </class>
+  </library>
+</class_libraries>

@@ -219,6 +219,12 @@ ros2 launch dji_m3508_single m3508.launch.py \
   transport:=uart serial_port:=/dev/ttyUSB0 baudrate:=921600 cmd_timeout_ms:=100
 ```
 
+ACK 结果码说明（与 MCU 协议一致）：
+
+- `ACK=0`：OK，命令执行成功
+- `ACK=1`：WARN，命令被限幅或降级执行（允许继续运行）
+- `ACK=2`：ERROR，命令执行失败（应按错误处理）
+
 ## 11. 话题与接口
 
 - 指令话题：
@@ -240,6 +246,11 @@ ros2 launch dji_m3508_single m3508.launch.py \
 - 检查 CAN 线束与供电
 - 确认 CAN 波特率为 `1000000`
 - 确认反馈 ID 为 `0x201`（`motor_id=1`）
+
+- UART 模式启动失败或无状态回传：
+- 检查 `transport:=uart`、`serial_port`、`baudrate` 参数是否匹配 MCU 配置
+- 检查串口权限与占用：`ls -l /dev/ttyUSB*`、`lsof /dev/ttyUSB0`
+- 查看日志中 ACK 结果：`ACK WARN` 表示降级执行，`ACK ERROR` 表示命令失败
 
 - CAN 权限问题：
 - 使用 `sudo` 配置 CAN 网口

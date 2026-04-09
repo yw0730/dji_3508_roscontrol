@@ -31,7 +31,8 @@ enum ModeType : uint8_t
 enum AckResult : uint8_t
 {
   kAckOk = 0,
-  kAckError = 1,
+  kAckWarn = 1,
+  kAckError = 2,
 };
 
 struct DecodedFrame
