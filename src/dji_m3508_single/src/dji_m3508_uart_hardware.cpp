@@ -24,7 +24,7 @@ constexpr std::size_t kPayloadMotorStateLen = 14;
 constexpr std::size_t kPayloadDiagStateLen = 8;
 constexpr std::size_t kPayloadAckLen = 5;
 
-constexpr auto kAckWaitTimeout = std::chrono::milliseconds(100);
+constexpr auto kAckWaitTimeout = std::chrono::milliseconds(500);
 constexpr auto kMotorStateWarningTimeout = std::chrono::milliseconds(100);
 constexpr auto kMotorStateErrorTimeout = std::chrono::milliseconds(500);
 constexpr auto kWarningLogInterval = std::chrono::milliseconds(1000);
@@ -106,6 +106,14 @@ hardware_interface::CallbackReturn DjiM3508UartHardware::on_init(
     heartbeat_period_ms_ = static_cast<uint16_t>(
       std::stoul(info_.hardware_parameters.at("heartbeat_period_ms")));
   }
+  if (info_.hardware_parameters.count("strict_activate_ack") > 0) {
+    const auto & strict_param = info_.hardware_parameters.at("strict_activate_ack");
+    strict_activate_ack_ = (strict_param == "1" || strict_param == "true" || strict_param == "True");
+  }
+  if (info_.hardware_parameters.count("strict_motor_state_timeout") > 0) {
+    const auto & strict_param = info_.hardware_parameters.at("strict_motor_state_timeout");
+    strict_motor_state_timeout_ = (strict_param == "1" || strict_param == "true" || strict_param == "True");
+  }
 
   if (motor_id_ < 1 || motor_id_ > 4) {
     RCLCPP_FATAL(rclcpp::get_logger("DjiM3508UartHardware"), "motor_id must be in [1,4].");
@@ -136,11 +144,14 @@ hardware_interface::CallbackReturn DjiM3508UartHardware::on_configure(
 {
   serial_fd_ = open_serial_port(serial_port_, baudrate_);
   if (serial_fd_ < 0) {
+    const int err = errno;
     RCLCPP_ERROR(
       rclcpp::get_logger("DjiM3508UartHardware"),
-      "Failed to open serial device %s at %d bps",
+      "Failed to open serial device %s at %d bps (errno=%d: %s)",
       serial_port_.c_str(),
-      baudrate_);
+      baudrate_,
+      err,
+      std::strerror(err));
     return hardware_interface::CallbackReturn::ERROR;
   }
 
@@ -167,15 +178,33 @@ hardware_interface::CallbackReturn DjiM3508UartHardware::on_activate(
   }
 
   AckState ack;
-  if (!wait_for_ack(mode_seq, kAckWaitTimeout, &ack)) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("DjiM3508UartHardware"),
-      "No ACK for SET_MODE seq=%u",
-      static_cast<unsigned int>(mode_seq));
-    return hardware_interface::CallbackReturn::ERROR;
+  const bool ack_received = wait_for_ack(mode_seq, kAckWaitTimeout, &ack);
+  if (!ack_received) {
+    if (strict_activate_ack_) {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "No ACK for SET_MODE seq=%u (strict_activate_ack=true)",
+        static_cast<unsigned int>(mode_seq));
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    const bool motor_state_alive =
+      (now - last_motor_state_time_) <= kMotorStateWarningTimeout;
+    if (motor_state_alive) {
+      RCLCPP_WARN(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "No ACK for SET_MODE seq=%u, but motor state is alive; continue activation in degraded mode",
+        static_cast<unsigned int>(mode_seq));
+    } else {
+      RCLCPP_WARN(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "No ACK for SET_MODE seq=%u and no fresh motor state; continue activation because strict_activate_ack=false",
+        static_cast<unsigned int>(mode_seq));
+    }
   }
 
-  if (ack.result != kAckOk) {
+  if (ack_received && ack.result != kAckOk) {
     if (ack.result == kAckWarn) {
       RCLCPP_WARN(
         rclcpp::get_logger("DjiM3508UartHardware"),
@@ -238,11 +267,22 @@ hardware_interface::return_type DjiM3508UartHardware::read(
   const auto silence = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_motor_state_time_);
 
   if (silence > kMotorStateErrorTimeout) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("DjiM3508UartHardware"),
-      "No MOTOR_STATE for %lld ms, entering ERROR",
-      static_cast<long long>(silence.count()));
-    return hardware_interface::return_type::ERROR;
+    if (strict_motor_state_timeout_) {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "No MOTOR_STATE for %lld ms, entering ERROR (strict_motor_state_timeout=true)",
+        static_cast<long long>(silence.count()));
+      return hardware_interface::return_type::ERROR;
+    }
+
+    if ((now - last_warning_log_time_) > kWarningLogInterval) {
+      RCLCPP_WARN(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "No MOTOR_STATE for %lld ms, keep running because strict_motor_state_timeout=false",
+        static_cast<long long>(silence.count()));
+      last_warning_log_time_ = now;
+    }
+    return hardware_interface::return_type::OK;
   }
 
   if (silence > kMotorStateWarningTimeout && (now - last_warning_log_time_) > kWarningLogInterval) {
@@ -289,7 +329,17 @@ bool DjiM3508UartHardware::send_frame(
 {
   const uint16_t seq = tx_seq_++;
   const std::vector<uint8_t> frame = encode_frame(type, seq, now_ms(), payload);
+  
+  RCLCPP_DEBUG(
+    rclcpp::get_logger("DjiM3508UartHardware"),
+    "[SEND] type=0x%02x seq=%u payload_len=%zu frame_len=%zu",
+    type, seq, payload.size(), frame.size());
+  
   if (!write_serial_bytes(serial_fd_, frame.data(), frame.size())) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("DjiM3508UartHardware"),
+      "[SEND] write_serial_bytes failed for type=0x%02x seq=%u",
+      type, seq);
     return false;
   }
 
@@ -330,8 +380,14 @@ bool DjiM3508UartHardware::wait_for_ack(
   std::chrono::milliseconds timeout,
   AckState * out_ack)
 {
+  RCLCPP_DEBUG(
+    rclcpp::get_logger("DjiM3508UartHardware"),
+    "[ACK_WAIT] waiting for seq=%u with timeout %ldms",
+    target_seq, timeout.count());
+    
   const auto deadline = std::chrono::steady_clock::now() + timeout;
   std::array<uint8_t, 256> rx_buf {};
+  int total_bytes_read = 0;
 
   while (std::chrono::steady_clock::now() < deadline) {
     const ssize_t n = read_serial_bytes(serial_fd_, rx_buf.data(), rx_buf.size());
@@ -340,13 +396,28 @@ bool DjiM3508UartHardware::wait_for_ack(
     }
 
     if (n > 0) {
+      total_bytes_read += n;
+      RCLCPP_DEBUG(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "[ACK_WAIT] read %ld bytes (total %d)",
+        n, total_bytes_read);
+        
       const auto frames = decoder_.push_bytes(rx_buf.data(), static_cast<std::size_t>(n));
+      RCLCPP_DEBUG(
+        rclcpp::get_logger("DjiM3508UartHardware"),
+        "[ACK_WAIT] decoded %zu frames",
+        frames.size());
+        
       for (const auto & frame : frames) {
         process_frame(frame);
         if (
           last_ack_.valid &&
           last_ack_.ack_seq == target_seq)
         {
+          RCLCPP_INFO(
+            rclcpp::get_logger("DjiM3508UartHardware"),
+            "[ACK_OK] seq=%u result=%u after %d bytes",
+            last_ack_.ack_seq, last_ack_.result, total_bytes_read);
           if (out_ack != nullptr) {
             *out_ack = last_ack_;
           }
@@ -358,6 +429,13 @@ bool DjiM3508UartHardware::wait_for_ack(
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
+  RCLCPP_ERROR(
+    rclcpp::get_logger("DjiM3508UartHardware"),
+    "[ACK_TIMEOUT] target_seq=%u, last_ack_seq=%u, last_ack_valid=%s, total_bytes=%d",
+    target_seq, 
+    last_ack_.ack_seq,
+    last_ack_.valid ? "true" : "false",
+    total_bytes_read);
   return false;
 }
 
@@ -443,7 +521,7 @@ void DjiM3508UartHardware::parse_ack(const std::vector<uint8_t> & payload)
       static_cast<unsigned int>(last_ack_.ack_seq),
       static_cast<unsigned int>(last_ack_.err_code));
   } else if (last_ack_.result == kAckError) {
-    RCLCPP_WARN(
+    RCLCPP_ERROR(
       rclcpp::get_logger("DjiM3508UartHardware"),
       "ACK ERROR seq=%u err_code=%u",
       static_cast<unsigned int>(last_ack_.ack_seq),

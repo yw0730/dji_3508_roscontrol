@@ -6,6 +6,8 @@
   <xacro:arg name="serial_port" default="/dev/ttyUSB0"/>
   <xacro:arg name="baudrate" default="921600"/>
   <xacro:arg name="cmd_timeout_ms" default="100"/>
+  <xacro:arg name="strict_activate_ack" default="false"/>
+  <xacro:arg name="strict_motor_state_timeout" default="false"/>
 
   <xacro:property name="transport" value="$(arg transport)"/>
 
@@ -147,6 +149,8 @@
             <param name="serial_port">$(arg serial_port)</param>
             <param name="baudrate">$(arg baudrate)</param>
             <param name="cmd_timeout_ms">$(arg cmd_timeout_ms)</param>
+            <param name="strict_activate_ack">$(arg strict_activate_ack)</param>
+            <param name="strict_motor_state_timeout">$(arg strict_motor_state_timeout)</param>
             <param name="heartbeat_period_ms">20</param>
           </xacro:if>
         </xacro:unless>

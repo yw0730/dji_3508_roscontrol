@@ -43,6 +43,7 @@ bool configure_port_raw_8n1(int fd, int baudrate)
 
   const speed_t speed = to_baud_constant(baudrate);
   if (speed == 0) {
+    errno = EINVAL;
     return false;
   }
 

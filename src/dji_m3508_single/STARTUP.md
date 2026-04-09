@@ -194,6 +194,8 @@ UART 模式参数（`transport:=uart`）：
 - `serial_port`：默认 `/dev/ttyUSB0`
 - `baudrate`：默认 `921600`
 - `cmd_timeout_ms`：默认 `100`
+- `strict_activate_ack`：默认 `false`（无 ACK 时不阻断激活；设为 `true` 可恢复严格握手）
+- `strict_motor_state_timeout`：默认 `false`（无 MOTOR_STATE 时仅告警；设为 `true` 可恢复严格超时错误）
 - `motor_id`：默认 `1`
 
 串口权限与设备检查：
@@ -216,7 +218,7 @@ UART 启动示例：
 ```bash
 ros2 launch dji_m3508_single m3508.launch.py \
   use_fake_hardware:=false use_gazebo:=false \
-  transport:=uart serial_port:=/dev/ttyUSB0 baudrate:=921600 cmd_timeout_ms:=100
+  transport:=uart serial_port:=/dev/ttyUSB0 baudrate:=921600 cmd_timeout_ms:=100 strict_activate_ack:=false strict_motor_state_timeout:=false
 ```
 
 ACK 结果码说明（与 MCU 协议一致）：

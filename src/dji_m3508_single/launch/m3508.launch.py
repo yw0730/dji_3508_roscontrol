@@ -17,6 +17,8 @@ def generate_launch_description():
     serial_port = LaunchConfiguration('serial_port')
     baudrate = LaunchConfiguration('baudrate')
     cmd_timeout_ms = LaunchConfiguration('cmd_timeout_ms')
+    strict_activate_ack = LaunchConfiguration('strict_activate_ack')
+    strict_motor_state_timeout = LaunchConfiguration('strict_motor_state_timeout')
 
     # 动态展开 xacro，生成 robot_description。
     robot_description_content = Command([
@@ -39,6 +41,10 @@ def generate_launch_description():
         baudrate,
         ' cmd_timeout_ms:=',
         cmd_timeout_ms,
+        ' strict_activate_ack:=',
+        strict_activate_ack,
+        ' strict_motor_state_timeout:=',
+        strict_motor_state_timeout,
     ])
 
     robot_description = {'robot_description': robot_description_content}
@@ -138,6 +144,16 @@ def generate_launch_description():
             'cmd_timeout_ms',
             default_value='100',
             description='MCU-side velocity command timeout in ms'
+        ),
+        DeclareLaunchArgument(
+            'strict_activate_ack',
+            default_value='false',
+            description='If true, fail activation when SET_MODE ACK is missing'
+        ),
+        DeclareLaunchArgument(
+            'strict_motor_state_timeout',
+            default_value='false',
+            description='If true, return read ERROR when MOTOR_STATE times out'
         ),
         gazebo,
         control_node,

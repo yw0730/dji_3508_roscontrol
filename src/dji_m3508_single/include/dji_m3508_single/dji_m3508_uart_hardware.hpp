@@ -80,6 +80,8 @@ private:
   int motor_id_ {1};
   uint16_t cmd_timeout_ms_ {100};
   uint16_t heartbeat_period_ms_ {20};
+  bool strict_activate_ack_ {false};
+  bool strict_motor_state_timeout_ {false};
 
   int serial_fd_ {-1};
   FrameDecoder decoder_;
