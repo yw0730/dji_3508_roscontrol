@@ -2,14 +2,6 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="dji_m3508_single_robot">
   <xacro:arg name="use_fake_hardware" default="true"/>
   <xacro:arg name="use_gazebo" default="false"/>
-  <xacro:arg name="transport" default="can"/>
-  <xacro:arg name="serial_port" default="/dev/ttyUSB0"/>
-  <xacro:arg name="baudrate" default="921600"/>
-  <xacro:arg name="cmd_timeout_ms" default="100"/>
-  <xacro:arg name="strict_activate_ack" default="false"/>
-  <xacro:arg name="strict_motor_state_timeout" default="false"/>
-
-  <xacro:property name="transport" value="$(arg transport)"/>
 
   <!-- 电机定子外壳（固定部分） -->
   <link name="base_link">
@@ -135,24 +127,18 @@
         </xacro:if>
         <!-- 实物模式：切换到自定义 DJI CAN 硬件插件 -->
         <xacro:unless value="$(arg use_fake_hardware)">
-          <xacro:if value="${transport == 'can'}">
-            <plugin>dji_m3508_ros2/DjiM3508Hardware</plugin>
-            <param name="can_interface">can0</param>
-            <param name="motor_id">1</param>
-            <param name="kp">10.0</param>
-            <param name="ki">0.1</param>
-            <param name="kd">0.01</param>
-          </xacro:if>
-          <xacro:if value="${transport == 'uart'}">
-            <plugin>dji_m3508_ros2/DjiM3508UartHardware</plugin>
-            <param name="motor_id">1</param>
-            <param name="serial_port">$(arg serial_port)</param>
-            <param name="baudrate">$(arg baudrate)</param>
-            <param name="cmd_timeout_ms">$(arg cmd_timeout_ms)</param>
-            <param name="strict_activate_ack">$(arg strict_activate_ack)</param>
-            <param name="strict_motor_state_timeout">$(arg strict_motor_state_timeout)</param>
-            <param name="heartbeat_period_ms">20</param>
-          </xacro:if>
+          <plugin>dji_m3508_ros2/DjiM3508Hardware</plugin>
+          <param name="can_interface">can0</param>
+          <param name="motor_id">1</param>
+          <param name="kp">80.0</param>
+          <param name="ki">0.0</param>
+          <param name="kd">0.0</param>
+          <param name="min_effective_current">350</param>
+          <param name="max_current">16384</param>
+          <param name="error_deadband">1.0</param>
+          <param name="startup_error_threshold">8.0</param>
+          <param name="current_slew_rate_per_sec">4000.0</param>
+          <param name="velocity_lpf_alpha">0.2</param>
         </xacro:unless>
       </xacro:unless>
     </hardware>

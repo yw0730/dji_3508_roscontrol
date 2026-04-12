@@ -19,18 +19,7 @@ add_library(dji_m3508_hardware SHARED
   src/can_utils.cpp
 )
 
-add_library(dji_m3508_uart_hardware SHARED
-  src/dji_m3508_uart_hardware.cpp
-  src/uart_protocol.cpp
-  src/serial_utils.cpp
-)
-
 target_include_directories(dji_m3508_hardware PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
-target_include_directories(dji_m3508_uart_hardware PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -42,17 +31,10 @@ ament_target_dependencies(dji_m3508_hardware
   rclcpp_lifecycle
 )
 
-ament_target_dependencies(dji_m3508_uart_hardware
-  hardware_interface
-  pluginlib
-  rclcpp
-  rclcpp_lifecycle
-)
-
 pluginlib_export_plugin_description_file(hardware_interface dji_m3508_hardware.xml)
 
 install(
-  TARGETS dji_m3508_hardware dji_m3508_uart_hardware
+  TARGETS dji_m3508_hardware
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -74,7 +56,7 @@ install(
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(dji_m3508_hardware dji_m3508_uart_hardware)
+ament_export_libraries(dji_m3508_hardware)
 ament_export_dependencies(hardware_interface pluginlib rclcpp rclcpp_lifecycle)
 
 ament_package()

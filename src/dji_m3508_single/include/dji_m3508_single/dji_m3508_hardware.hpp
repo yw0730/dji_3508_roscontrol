@@ -52,6 +52,14 @@ private:
   double kp_ {10.0};
   double ki_ {0.1};
   double kd_ {0.01};
+  int16_t min_effective_current_ {800};
+  int16_t max_current_ {16384};
+  double error_deadband_ {0.6};
+  double startup_error_threshold_ {2.0};
+  double current_slew_rate_per_sec_ {8000.0};
+  double velocity_lpf_alpha_ {0.2};
+  double last_current_cmd_ {0.0};
+  double filtered_velocity_ {0.0};
 
   double integral_error_ {0.0};
   double prev_error_ {0.0};

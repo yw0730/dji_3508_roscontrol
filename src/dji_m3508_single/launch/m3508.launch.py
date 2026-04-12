@@ -13,12 +13,6 @@ def generate_launch_description():
     # 通过 launch 参数切换仿真硬件与真实 CAN 硬件。
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     use_gazebo = LaunchConfiguration('use_gazebo')
-    transport = LaunchConfiguration('transport')
-    serial_port = LaunchConfiguration('serial_port')
-    baudrate = LaunchConfiguration('baudrate')
-    cmd_timeout_ms = LaunchConfiguration('cmd_timeout_ms')
-    strict_activate_ack = LaunchConfiguration('strict_activate_ack')
-    strict_motor_state_timeout = LaunchConfiguration('strict_motor_state_timeout')
 
     # 动态展开 xacro，生成 robot_description。
     robot_description_content = Command([
@@ -33,18 +27,6 @@ def generate_launch_description():
         use_fake_hardware,
         ' use_gazebo:=',
         use_gazebo,
-        ' transport:=',
-        transport,
-        ' serial_port:=',
-        serial_port,
-        ' baudrate:=',
-        baudrate,
-        ' cmd_timeout_ms:=',
-        cmd_timeout_ms,
-        ' strict_activate_ack:=',
-        strict_activate_ack,
-        ' strict_motor_state_timeout:=',
-        strict_motor_state_timeout,
     ])
 
     robot_description = {'robot_description': robot_description_content}
@@ -124,36 +106,6 @@ def generate_launch_description():
             'use_gazebo',
             default_value='false',
             description='true: launch Gazebo and spawn robot model'
-        ),
-        DeclareLaunchArgument(
-            'transport',
-            default_value='can',
-            description='real hardware transport: can or uart'
-        ),
-        DeclareLaunchArgument(
-            'serial_port',
-            default_value='/dev/ttyUSB0',
-            description='UART device path for transport=uart'
-        ),
-        DeclareLaunchArgument(
-            'baudrate',
-            default_value='921600',
-            description='UART baudrate for transport=uart'
-        ),
-        DeclareLaunchArgument(
-            'cmd_timeout_ms',
-            default_value='100',
-            description='MCU-side velocity command timeout in ms'
-        ),
-        DeclareLaunchArgument(
-            'strict_activate_ack',
-            default_value='false',
-            description='If true, fail activation when SET_MODE ACK is missing'
-        ),
-        DeclareLaunchArgument(
-            'strict_motor_state_timeout',
-            default_value='false',
-            description='If true, return read ERROR when MOTOR_STATE times out'
         ),
         gazebo,
         control_node,
