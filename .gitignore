@@ -13,3 +13,6 @@ __pycache__/
 *.swp
 *~
 .DS_Store
+
+# Local runtime logs
+launch_*.log
